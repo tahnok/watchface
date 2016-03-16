@@ -7,17 +7,23 @@ use std::process::Command;
 fn main() {
     println!("Hello, world!");
     let re = Regex::new("User \"(.+)\" registered").unwrap();
+    let mut cursor = String::new();
 
-    // journalctl _COMM=ngircd -o cat --no-pager
-    let output = Command::new("journalctl")
+    let mut command = Command::new("journalctl")
                          .arg("_COMM=ngircd")
                          .arg("-o")
                          .arg("cat")
                          .arg("--no-pager")
-                         .output()
-                         .unwrap_or_else(|e| {
-                             panic!("failed to execute process: {}", e)
-                         });
+                         .arg("--show-cursor");
+    if !cursor.is_empty() {
+        command = command.arg("--after-cursor=")
+                         .arg(cursor);
+    }
+
+    let output = command.output()
+                        .unwrap_or_else(|e| {
+                            panic!("failed to execute process: {}", e)
+                        });
 
     println!("status: {}", output.status);
     println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
