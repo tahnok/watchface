@@ -25,7 +25,7 @@ fn connections(cursor: &str, re: &Regex) -> String {
            .arg("--show-cursor");
 
     if !cursor.is_empty() {
-        command.arg(format!("--after-cursor='{}'", cursor));
+        command.arg(format!("--after-cursor={}", cursor));
     }
 
     println!("command {:?}", command);
