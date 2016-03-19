@@ -6,29 +6,35 @@ use std::process::Command;
 
 fn main() {
     println!("Hello, world!");
-    let re = Regex::new("User \"(.+)\" registered").unwrap();
-    let mut cursor = String::new();
 
-    let mut command = Command::new("journalctl")
-                         .arg("_COMM=ngircd")
-                         .arg("-o")
-                         .arg("cat")
-                         .arg("--no-pager")
-                         .arg("--show-cursor");
+    let new_cursor = connections("");
+    println!("{}", new_cursor);
+}
+
+fn connections(cursor: &str) -> String {
+    let re = Regex::new("User \"(.+)\" registered").unwrap();
+    let mut command = Command::new("journalctl");
+
+    command.arg("_COMM=ngircd")
+           .arg("-o")
+           .arg("cat")
+           .arg("--no-pager")
+           .arg("--show-cursor");
+
     if !cursor.is_empty() {
-        command = command.arg("--after-cursor=")
-                         .arg(cursor);
+        command.arg("--after-cursor=")
+               .arg(cursor);
     }
 
-    let output = command.output()
-                        .unwrap_or_else(|e| {
-                            panic!("failed to execute process: {}", e)
-                        });
+    let output = command.output().unwrap();
 
     println!("status: {}", output.status);
     println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
 
-    for user in re.captures_iter(str::from_utf8(&output.stdout).unwrap()) {
+    let logs = str::from_utf8(&output.stdout).unwrap();
+    for user in re.captures_iter(logs) {
         println!("{}", user.at(1).unwrap_or("??"));
     }
+
+    String::from(logs.lines().last().unwrap()).clone()
 }
