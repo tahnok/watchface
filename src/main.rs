@@ -5,24 +5,20 @@ extern crate regex;
 
 use irc::client::prelude::*;
 use regex::Regex;
-use std::str;
+use std::{str, process};
 use std::collections::HashSet;
-use std::process;
 use std::thread::sleep;
 use std::time::Duration;
 
 lazy_static! {
-    static ref USER: Regex = Regex::new(r#"User "(.+)!(.+)" registered"#).unwrap();
+    static ref USER_REGISTER_RE: Regex = Regex::new(r#"User "(.+)!(.+)" registered"#).unwrap();
+    static ref DELAY: Duration = Duration::new(5,0);
 }
+static CURSOR_OFFSET: usize = 11; // '-- cursor: '
+static OWNER: str = *"wes";
 
 fn main() {
-    let config = Config {
-        nickname: Some(format!("bott")),
-        server: Some(format!("127.0.0.1")),
-        channels: Some(vec![format!("#main")]),
-        .. Default::default()
-    };
-    let server = IrcServer::from_config(config).unwrap();
+    let server = IrcServer::new("irc.json").unwrap();
     server.identify().unwrap();
 
     let mut cursor = String::new();
@@ -30,10 +26,13 @@ fn main() {
         let (new_cursor, nicks) = get_nicks(&cursor);
         cursor = new_cursor;
         for user in nicks.iter() {
-            server.send_privmsg("wes", format!("{} has joined", user).as_str());
+            let resp = server.send_privmsg(&OWNER, format!("{} has joined", user).as_str());
+            if resp.is_err() {
+                println!("failed to send");
+            }
             println!("{}", user);
         }
-        sleep(Duration::new(5,0));
+        sleep(*DELAY);
     }
 }
 
@@ -41,8 +40,7 @@ fn get_nicks(cursor: &String) -> (String, HashSet<String>) {
     let mut command = process::Command::new("journalctl");
 
     command.arg("_COMM=ngircd")
-           .arg("-o")
-           .arg("cat")
+           .arg("-o").arg("cat")
            .arg("--no-pager")
            .arg("--show-cursor");
 
@@ -60,10 +58,11 @@ fn get_nicks(cursor: &String) -> (String, HashSet<String>) {
 
     let logs = str::from_utf8(&stdout).unwrap();
     let mut users = HashSet::new();
-    for user in USER.captures_iter(logs) {
+    for user in USER_REGISTER_RE.captures_iter(logs) {
         let nick = user.at(1).unwrap();
         users.insert(String::from(nick));
     }
 
-    (String::from(&logs.lines().last().unwrap()[11..]).clone(), users)
+    let new_cursor = String::from(&logs.lines().last().unwrap()[CURSOR_OFFSET..]).clone();
+    (new_cursor, users)
 }
