@@ -2,20 +2,22 @@ extern crate irc;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
+extern crate chrono;
 
 use irc::client::prelude::*;
 use regex::Regex;
 use std::{str, process};
 use std::collections::HashSet;
 use std::thread::sleep;
-use std::time::Duration;
+use chrono::*;
+use std::time;
 
 lazy_static! {
     static ref USER_REGISTER_RE: Regex = Regex::new(r#"User "(.+)!(.+)" registered"#).unwrap();
-    static ref DELAY: Duration = Duration::new(5,0);
+    static ref DELAY: time::Duration = time::Duration::new(5,0);
 }
 static CURSOR_OFFSET: usize = 11; // '-- cursor: '
-static OWNER: str = *"wes";
+static OWNER: str = *"tahnok";
 
 fn main() {
     let server = IrcServer::new("irc.json").unwrap();
@@ -46,6 +48,9 @@ fn get_nicks(cursor: &String) -> (String, HashSet<String>) {
 
     if !cursor.is_empty() {
         command.arg(format!("--after-cursor={}", cursor));
+    } else {
+        let dt = Local::now() - Duration::seconds(60 * 60 * 5);
+        command.arg(format!("--since={}-{}-{}", dt.year(), dt.month(), dt.day()));
     }
 
     let process::Output {status, stdout, stderr} = command.output().unwrap();
